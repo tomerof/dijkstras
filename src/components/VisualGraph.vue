@@ -1,21 +1,23 @@
 <template>
   <div>
-    <canvas @mousedown="paint" ref="canv"></canvas>
-    <table>
-      <tr v-for="(dot, dotIndex) in dots" v-bind:key="dotIndex">
-        <td>{{ dot.name }}</td>
-        <td>
-          <button type="button" @click="moveDot(dotIndex)" :class="{'active':dotIndex === dotIndexToMove}">Move</button>
-        </td>
-        <td>
-          <button type="button" @click="deleteDot(dotIndex)">Delete</button>
-        </td>
-        <td v-for="(distance, distIndex) in dotDistances(dotIndex)" v-bind:key="distIndex">
-          <label>{{ names[distIndex] }}</label>
-          <input type="tel" v-model="distances[dotIndex][distIndex]" @change="connectDots(dotIndex, distIndex)">
-        </td>
-      </tr>
-    </table>
+    <canvas @mousedown="paint" @touchstart="paint" ref="canv"></canvas>
+    <div class="table-wrapper">
+      <table>
+        <tr v-for="(dot, dotIndex) in dots" v-bind:key="dotIndex">
+          <td>{{ dot.name }}</td>
+          <td>
+            <button type="button" @click="moveDot(dotIndex)" :class="{'active':dotIndex === dotIndexToMove}">הזזה</button>
+          </td>
+          <td>
+            <button type="button" @click="deleteDot(dotIndex)">מחיקה</button>
+          </td>
+          <td v-for="(distance, distIndex) in dotDistances(dotIndex)" v-bind:key="distIndex" class="dist-col">
+            <label>{{ names[distIndex] }}</label>&nbsp;
+            <input :disabled="dotIndex === distIndex" type="tel" v-model="distances[dotIndex][distIndex]" @change="connectDots(dotIndex, distIndex)">
+          </td>
+        </tr>
+      </table>
+    </div>
     <button type="button" @click="calculate">חשב</button>
     <button type="button" @click="reset">איפוס</button>
     <!--<button type="button" @click="redraw">צייר מחדש</button>-->
@@ -38,6 +40,13 @@ export default {
       result: ''
     }
   },
+  computed: {
+    isTouchEnabled() {
+      return ('ontouchstart' in window) ||
+          (navigator.maxTouchPoints > 0) ||
+          (navigator.msMaxTouchPoints > 0);
+    }
+  },
   methods: {
     dotDistances(dotIndex) {
       if (this.distances[dotIndex]) {
@@ -55,14 +64,23 @@ export default {
       return this.distances[dotIndex]
     },
     paint(event) {
+      let e = event;
+
+      if(event instanceof MouseEvent && this.isTouchEnabled){
+        return false;
+      }
+
+      if(event instanceof TouchEvent && event.touches[0]){
+        e = event.touches[0]
+      }
       if (this.dotIndexToMove !== null) {
-        this.dots[this.dotIndexToMove].x = event.clientX
-        this.dots[this.dotIndexToMove].y = event.clientY
+        this.dots[this.dotIndexToMove].x = e.clientX
+        this.dots[this.dotIndexToMove].y = e.clientY
         this.dotIndexToMove = null
         this.redraw()
       } else {
         const rect = this.canvas.getBoundingClientRect();
-        this.paintDot(event.clientX - rect.left, event.clientY - rect.top)
+        this.paintDot(e.clientX - rect.left, e.clientY - rect.top)
       }
     },
     paintDot(x, y, label, pushToArray = true) {
@@ -101,7 +119,8 @@ export default {
       const distanceWeight = this.distances[fromDotIndex][toDotIndex]
       if (this.dots[fromDotIndex] && this.dots[toDotIndex] && fromDotIndex !== toDotIndex) {
         if (distanceWeight > 0) {
-          this.paintLine(this.dots[fromDotIndex], this.dots[toDotIndex], distanceWeight)
+          //this.paintLine(this.dots[fromDotIndex], this.dots[toDotIndex], distanceWeight)
+          this.redraw()
         }
       }
     },
@@ -116,7 +135,9 @@ export default {
         this.dots.forEach((dot, dotIndex) => {
           if (this.distances[dotIndex]) {
             this.distances[dotIndex].forEach((dist, distIndex) => {
-              this.connectDots(dotIndex, distIndex)
+              if(dist){
+                this.paintLine(this.dots[dotIndex], this.dots[distIndex], dist)
+              }
             })
           }
         })
@@ -254,8 +275,13 @@ export default {
   mounted() {
     this.canvas = this.$refs.canv
     this.ctx = this.canvas.getContext('2d')
-    this.canvas.height = 500
-    this.canvas.width = 500
+    if(window.innerWidth < 500){
+      this.canvas.width = window.innerWidth
+      this.canvas.height = window.innerWidth
+    }else{
+      this.canvas.width = 500
+      this.canvas.height = 500
+    }
 
     this.loadFromLocalStorage()
   }
@@ -277,4 +303,26 @@ input[type="tel"] {
 button.active {
   background-color: #f00;
 }
+.table-wrapper {
+  max-width: 100%;
+  overflow-x: auto;
+}
+
+table td {
+  white-space: nowrap;
+}
+
+td.dist-col {
+  border: solid 1px;
+}
+
+td.dist-col input {
+  border: none;
+}
+
+td.dist-col input[disabled] {
+  opacity: .4;
+  cursor: not-allowed;
+}
+
 </style>
