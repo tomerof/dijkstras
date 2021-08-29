@@ -1,10 +1,14 @@
 <template>
   <div>
-    <canvas @mousedown="paint" @touchstart="paint" ref="canv"></canvas>
+    <h1>מחשבון המסלול הקצר ביותר</h1>
+    <h3>ע״פ האלגוריתם של דייקסטרה</h3>
+    <div class="canvas-wrapper">
+      <canvas @mousedown="paint" @touchstart="paint" ref="canv"></canvas>
+    </div>
     <div class="table-wrapper">
-      <table>
+      <table v-if="renderList">
         <tr v-for="(dot, dotIndex) in dots" v-bind:key="dotIndex">
-          <td>{{ dot.name }}</td>
+          <td><span class="dot-name">{{ dot.name }}</span></td>
           <td>
             <button type="button" @click="moveDot(dotIndex)" :class="{'active':dotIndex === dotIndexToMove}">הזזה</button>
           </td>
@@ -13,14 +17,34 @@
           </td>
           <td v-for="(distance, distIndex) in dotDistances(dotIndex)" v-bind:key="distIndex" class="dist-col">
             <label>{{ names[distIndex] }}</label>&nbsp;
-            <input :disabled="dotIndex === distIndex" type="tel" v-model="distances[dotIndex][distIndex]" @change="connectDots(dotIndex, distIndex)">
+            <input :disabled="dotIndex === distIndex" type="number" v-model.number="distances[dotIndex][distIndex]" @change="connectDots(dotIndex, distIndex)">
           </td>
         </tr>
       </table>
     </div>
-    <button type="button" @click="calculate">חשב</button>
-    <button type="button" @click="reset">איפוס</button>
+    <div class="src-dist-inputs">
+      <div class="form-group">
+        <label for="src">מקור</label>
+        <select v-if="renderList" name="src" id="src" v-model="srcIndex">
+          <option v-for="(dot, dotIndex) in dots" :value="dotIndex" v-bind:key="dotIndex">{{dot.name}}</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label for="dist">יעד</label>
+        <select v-if="renderList" name="dist" id="dist" v-model="distIndex">
+          <option v-for="(dot, dotIndex) in dots" :value="dotIndex" v-bind:key="dotIndex">{{dot.name}}</option>
+        </select>
+      </div>
+    </div>
+    <div class="action-buttons">
+      <button class="calc-btn" type="button" @click="calculate">חשב</button>
+      <button class="reset-btn" type="button" @click="reset">איפוס</button>
+    </div>
     <!--<button type="button" @click="redraw">צייר מחדש</button>-->
+    <div class="results-path" v-if="resultPath.length">
+      <p>המסלול הקצר ביותר הוא</p>
+      <p>{{resultPath.join(' => ')}}</p>
+    </div>
     <div class="results" v-html="result"></div>
   </div>
 </template>
@@ -37,7 +61,12 @@ export default {
       names: ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z'],
       dotIndexToMove: null,
       nextDotIndex: 0,
-      result: ''
+      result: '',
+      resultPath: [],
+      lastPaintTime: 0,
+      renderList: true,
+      srcIndex: 0,
+      distIndex: 0
     }
   },
   computed: {
@@ -66,19 +95,30 @@ export default {
     paint(event) {
       let e = event;
 
-      if(event instanceof MouseEvent && this.isTouchEnabled){
+      const now = new Date().getTime();
+
+      //prevent double dot creation on touch & click supported devices
+      if(this.lastPaintTime !== 0 && now - this.lastPaintTime < 250){
         return false;
       }
+
+      this.lastPaintTime = now;
 
       if(event instanceof TouchEvent && event.touches[0]){
         e = event.touches[0]
       }
+
       if (this.dotIndexToMove !== null) {
         this.dots[this.dotIndexToMove].x = e.clientX
         this.dots[this.dotIndexToMove].y = e.clientY
         this.dotIndexToMove = null
         this.redraw()
       } else {
+        const dotName = prompt("Type Name", this.names[this.nextDotIndex])
+        if(dotName){
+          this.names[this.nextDotIndex] = dotName.toUpperCase()
+          localStorage.setItem('names', JSON.stringify(this.names))
+        }
         const rect = this.canvas.getBoundingClientRect();
         this.paintDot(e.clientX - rect.left, e.clientY - rect.top)
       }
@@ -94,6 +134,9 @@ export default {
       } else {
         this.ctx.fillText(this.names[this.nextDotIndex], x - 5, y - 10);
       }
+
+      this.ctx.textAlign = "center";
+
       if (pushToArray) {
         this.dots.push({x, y, name: this.names[this.nextDotIndex]})
         this.nextDotIndex++
@@ -117,15 +160,16 @@ export default {
     },
     connectDots(fromDotIndex, toDotIndex) {
       const distanceWeight = this.distances[fromDotIndex][toDotIndex]
+      this.distances[toDotIndex][fromDotIndex] = distanceWeight
       if (this.dots[fromDotIndex] && this.dots[toDotIndex] && fromDotIndex !== toDotIndex) {
-        if (distanceWeight > 0) {
-          //this.paintLine(this.dots[fromDotIndex], this.dots[toDotIndex], distanceWeight)
-          this.redraw()
-        }
+        this.redraw()
+        this.forceRerenderList()
       }
     },
     redraw() {
       this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height)
+      this.ctx.fillStyle = "rgb(215,215,215)"
+      this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
 
       if (Array.isArray(this.dots)) {
         this.dots.forEach((dot) => {
@@ -183,10 +227,8 @@ export default {
     // the constructed distance array
     printSolution(dist) {
 
-      this.result = "Vertex \t\t Distance from Source<br>";
-      for (let i = 0; i < this.dots.length; i++) {
-        this.result += i + " \t\t " + dist[i] + "<br>"
-      }
+      this.result = "ואורכו הוא ";
+      this.result += dist[this.distIndex]
     },
 
     // Function that implements Dijkstra's
@@ -198,6 +240,8 @@ export default {
 
       let dist = new Array(V)
       let sptSet = new Array(V)
+      const path = []
+      path.push(this.names[this.srcIndex])
 
       // Initialize all distances as
       // INFINITE and stpSet[] as false
@@ -239,6 +283,11 @@ export default {
         }
       }
 
+      // TODO: find path names
+      this.resultPath = path;
+      //this.resultPath = path.filter((p, i) =>  path.indexOf(p) === i)
+      this.resultPath.push(this.names[this.distIndex])
+
       // Print the constructed distance array
       this.printSolution(dist)
     },
@@ -247,7 +296,7 @@ export default {
       for(let dotIndex in this.distances){
         graph.push(this.distances[dotIndex])
       }
-      this.dijkstra(graph, 3)
+      this.dijkstra(graph, this.srcIndex)
     },
     reset(){
       this.nextDotIndex = 0
@@ -262,14 +311,31 @@ export default {
       if(dotsJson){
         this.dots = JSON.parse(dotsJson)
       }
+
       const distancesJson = localStorage.getItem('distances')
       if(distancesJson){
         this.distances = JSON.parse(distancesJson)
       }
 
+      const namesJson = localStorage.getItem('names')
+      if(namesJson){
+        this.names = JSON.parse(namesJson)
+      }
+
       this.nextDotIndex = this.dots.length
 
       this.redraw()
+    },
+    forceRerenderList() {
+      // Remove my-component from the DOM
+      this.renderList = false;
+
+      // If you like promises better you can
+      // also use nextTick this way
+      this.$nextTick().then(() => {
+        // Add the component back in
+        this.renderList = true;
+      });
     }
   },
   mounted() {
@@ -289,13 +355,21 @@ export default {
 </script>
 
 <style scoped>
+body, h1, h2, h3, h4, h5, h6, table, input, label, button {
+  font-family: Arial, sans-serif;
+}
+
+.canvas-wrapper {
+  text-align: center;
+}
+
 canvas {
   width: 500px;
   max-width: 100%;
   border: solid 1px #000;
 }
 
-input[type="tel"] {
+input[type="number"] {
   width: 40px;
   padding: 0;
 }
@@ -308,8 +382,14 @@ button.active {
   overflow-x: auto;
 }
 
+.table-wrapper table {
+  margin-left: auto;
+  margin-right: auto;
+}
+
 table td {
   white-space: nowrap;
+  text-align: left;
 }
 
 td.dist-col {
@@ -323,6 +403,40 @@ td.dist-col input {
 td.dist-col input[disabled] {
   opacity: .4;
   cursor: not-allowed;
+}
+
+.dot-name {
+  font-size: 20px;
+  font-weight: bold;
+}
+
+.calc-btn {
+  margin-left: 10px;
+}
+
+h1,h3 {
+  text-align: center;
+}
+
+.src-dist-inputs {
+  margin-top: 10px;
+}
+
+.src-dist-inputs label {
+  margin-left: 10px;
+}
+
+.form-group {
+  margin-bottom: 10px;
+}
+
+.results, .results-path {
+  margin-top: 10px;
+}
+
+.action-buttons, .src-dist-inputs, .results, .results-path {
+  direction: rtl;
+  text-align: center;
 }
 
 </style>
