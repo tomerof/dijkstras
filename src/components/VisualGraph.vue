@@ -10,14 +10,16 @@
         <tr v-for="(dot, dotIndex) in dots" v-bind:key="dotIndex">
           <td><span class="dot-name">{{ dot.name }}</span></td>
           <td>
-            <button type="button" @click="moveDot(dotIndex)" :class="{'active':dotIndex === dotIndexToMove}">הזזה</button>
+            <button type="button" @click="moveDot(dotIndex)" :class="{'active':dotIndex === dotIndexToMove}">הזזה
+            </button>
           </td>
           <td>
             <button type="button" @click="deleteDot(dotIndex)">מחיקה</button>
           </td>
           <td v-for="(distance, distIndex) in dotDistances(dotIndex)" v-bind:key="distIndex" class="dist-col">
             <label>{{ names[distIndex] }}</label>&nbsp;
-            <input :disabled="dotIndex === distIndex" type="number" v-model.number="distances[dotIndex][distIndex]" @change="connectDots(dotIndex, distIndex)">
+            <input :disabled="dotIndex === distIndex" type="number" v-model.number="distances[dotIndex][distIndex]"
+                   @change="connectDots(dotIndex, distIndex)">
           </td>
         </tr>
       </table>
@@ -26,13 +28,13 @@
       <div class="form-group">
         <label for="src">מקור</label>
         <select v-if="renderList" name="src" id="src" v-model="srcIndex">
-          <option v-for="(dot, dotIndex) in dots" :value="dotIndex" v-bind:key="dotIndex">{{dot.name}}</option>
+          <option v-for="(dot, dotIndex) in dots" :value="dotIndex" v-bind:key="dotIndex">{{ dot.name }}</option>
         </select>
       </div>
       <div class="form-group">
         <label for="dist">יעד</label>
         <select v-if="renderList" name="dist" id="dist" v-model="distIndex">
-          <option v-for="(dot, dotIndex) in dots" :value="dotIndex" v-bind:key="dotIndex">{{dot.name}}</option>
+          <option v-for="(dot, dotIndex) in dots" :value="dotIndex" v-bind:key="dotIndex">{{ dot.name }}</option>
         </select>
       </div>
     </div>
@@ -43,13 +45,15 @@
     <!--<button type="button" @click="redraw">צייר מחדש</button>-->
     <div class="results-path" v-if="resultPath.length">
       <p>המסלול הקצר ביותר הוא</p>
-      <p>{{resultPath.join(' => ')}}</p>
+      <p>{{ resultPath.join(' => ') }}</p>
     </div>
     <div class="results" v-html="result"></div>
   </div>
 </template>
 
 <script>
+let NO_PARENT = -1;
+
 export default {
   name: "VisualGraph",
   data() {
@@ -98,13 +102,13 @@ export default {
       const now = new Date().getTime();
 
       //prevent double dot creation on touch & click supported devices
-      if(this.lastPaintTime !== 0 && now - this.lastPaintTime < 250){
+      if (this.lastPaintTime !== 0 && now - this.lastPaintTime < 250) {
         return false;
       }
 
       this.lastPaintTime = now;
 
-      if(event instanceof TouchEvent && event.touches[0]){
+      if (event instanceof TouchEvent && event.touches[0]) {
         e = event.touches[0]
       }
 
@@ -115,7 +119,7 @@ export default {
         this.redraw()
       } else {
         const dotName = prompt("Type Name", this.names[this.nextDotIndex])
-        if(dotName){
+        if (dotName) {
           this.names[this.nextDotIndex] = dotName.toUpperCase()
           localStorage.setItem('names', JSON.stringify(this.names))
         }
@@ -179,7 +183,7 @@ export default {
         this.dots.forEach((dot, dotIndex) => {
           if (this.distances[dotIndex]) {
             this.distances[dotIndex].forEach((dist, distIndex) => {
-              if(dist){
+              if (dist) {
                 this.paintLine(this.dots[dotIndex], this.dots[distIndex], dist)
               }
             })
@@ -203,102 +207,14 @@ export default {
 
       this.redraw()
     },
-    // A utility function to find the
-    // vertex with minimum distance
-    // value, from the set of vertices
-    // not yet included in shortest
-    // path tree
-    minDistance(dist, sptSet) {
-
-      // Initialize min value
-      let min = Number.MAX_VALUE
-      let min_index = -1
-
-      for (let v = 0; v < this.dots.length; v++) {
-        if (sptSet[v] === false && dist[v] <= min) {
-          min = dist[v];
-          min_index = v;
-        }
-      }
-      return min_index;
-    },
-
-    // A utility function to print
-    // the constructed distance array
-    printSolution(dist) {
-
-      this.result = "ואורכו הוא ";
-      this.result += dist[this.distIndex]
-    },
-
-    // Function that implements Dijkstra's
-    // single source shortest path algorithm
-    // for a graph represented using adjacency
-    // matrix representation
-    dijkstra(graph, src) {
-      const V = this.dots.length
-
-      let dist = new Array(V)
-      let sptSet = new Array(V)
-      const path = []
-      path.push(this.names[this.srcIndex])
-
-      // Initialize all distances as
-      // INFINITE and stpSet[] as false
-      for (let i = 0; i < V; i++) {
-        dist[i] = Number.MAX_VALUE
-        sptSet[i] = false
-      }
-
-      // Distance of source vertex
-      // from itself is always 0
-      dist[src] = 0
-
-      // Find shortest path for all vertices
-      for (let count = 0; count < V - 1; count++) {
-
-        // Pick the minimum distance vertex
-        // from the set of vertices not yet
-        // processed. u is always equal to
-        // src in first iteration.
-        let u = this.minDistance(dist, sptSet)
-
-        // Mark the picked vertex as processed
-        sptSet[u] = true
-
-        // Update dist value of the adjacent
-        // vertices of the picked vertex.
-        for (let v = 0; v < V; v++) {
-
-          // Update dist[v] only if is not in
-          // sptSet, there is an edge from u
-          // to v, and total weight of path
-          // from src to v through u is smaller
-          // than current value of dist[v]
-          if (!sptSet[v] && graph[u][v] !== 0 &&
-              dist[u] !== Number.MAX_VALUE &&
-              dist[u] + graph[u][v] < dist[v]) {
-            dist[v] = dist[u] + graph[u][v]
-          }
-        }
-      }
-
-      // TODO: find path names
-      this.resultPath = path;
-      //this.resultPath = path.filter((p, i) =>  path.indexOf(p) === i)
-      this.resultPath.push(this.names[this.distIndex])
-
-      // Print the constructed distance array
-      this.printSolution(dist)
-    },
-    calculate(){
+    calculate() {
       const graph = []
-      for(let dotIndex in this.distances){
+      for (let dotIndex in this.distances) {
         graph.push(this.distances[dotIndex])
       }
       this.dijkstra(graph, this.srcIndex)
     },
-    reset(){
+    reset() {
       this.nextDotIndex = 0
       this.dots = []
       this.distances = []
@@ -306,19 +222,19 @@ export default {
       localStorage.removeItem('dots')
       localStorage.removeItem('distances')
     },
-    loadFromLocalStorage(){
+    loadFromLocalStorage() {
       const dotsJson = localStorage.getItem('dots')
-      if(dotsJson){
+      if (dotsJson) {
         this.dots = JSON.parse(dotsJson)
       }
 
       const distancesJson = localStorage.getItem('distances')
-      if(distancesJson){
+      if (distancesJson) {
         this.distances = JSON.parse(distancesJson)
       }
 
       const namesJson = localStorage.getItem('names')
-      if(namesJson){
+      if (namesJson) {
         this.names = JSON.parse(namesJson)
       }
 
@@ -336,15 +252,112 @@ export default {
         // Add the component back in
         this.renderList = true;
       });
+    },
+    dijkstra(adjacencyMatrix, startVertex) {
+      let nVertices = adjacencyMatrix[0].length;
+
+      // shortestDistances[i] will hold the
+      // shortest distance from src to i
+      let shortestDistances = new Array(nVertices);
+
+      // added[i] will true if vertex i is
+      // included / in shortest path tree
+      // or shortest distance from src to
+      // i is finalized
+      let added = new Array(nVertices);
+
+      // Initialize all distances as
+      // INFINITE and added[] as false
+      for (let vertexIndex = 0; vertexIndex < nVertices;
+           vertexIndex++) {
+        shortestDistances[vertexIndex] = Number.MAX_VALUE;
+        added[vertexIndex] = false;
+      }
+
+      // Distance of source vertex from
+      // itself is always 0
+      shortestDistances[startVertex] = 0;
+
+      // Parent array to store shortest
+      // path tree
+      let parents = new Array(nVertices);
+
+      // The starting vertex does not
+      // have a parent
+      parents[startVertex] = NO_PARENT;
+
+      // Find shortest path for all
+      // vertices
+      for (let i = 1; i < nVertices; i++) {
+
+        // Pick the minimum distance vertex
+        // from the set of vertices not yet
+        // processed. nearestVertex is
+        // always equal to startNode in
+        // first iteration.
+        let nearestVertex = -1;
+        let shortestDistance = Number.MAX_VALUE;
+        for (let vertexIndex = 0;
+             vertexIndex < nVertices;
+             vertexIndex++) {
+          if (!added[vertexIndex] &&
+              shortestDistances[vertexIndex] <
+              shortestDistance) {
+            nearestVertex = vertexIndex;
+            shortestDistance = shortestDistances[vertexIndex];
+          }
+        }
+
+        // Mark the picked vertex as
+        // processed
+        added[nearestVertex] = true;
+
+        // Update dist value of the
+        // adjacent vertices of the
+        // picked vertex.
+        for (let vertexIndex = 0;
+             vertexIndex < nVertices;
+             vertexIndex++) {
+          let edgeDistance = adjacencyMatrix[nearestVertex][vertexIndex];
+
+          if (edgeDistance > 0
+              && ((shortestDistance + edgeDistance) <
+                  shortestDistances[vertexIndex])) {
+            parents[vertexIndex] = nearestVertex;
+            shortestDistances[vertexIndex] = shortestDistance +
+                edgeDistance;
+          }
+        }
+      }
+
+      this.printSolution(startVertex, shortestDistances, parents);
+    },
+    printSolution(startVertex, distances, parents) {
+      this.resultPath = [];
+      this.result = "ואורכו הוא ";
+      this.result += distances[this.distIndex]
+      //this.result += ("<br>" + this.names[this.distIndex] + "        ");
+      //this.result += (distances[this.distIndex] + "      ");
+      this.printPath(this.distIndex, parents)
+    },
+    printPath(currentVertex, parents) {
+      // Base case : Source node has
+      // been processed
+      if (currentVertex === NO_PARENT) {
+        return;
+      }
+
+      this.printPath(parents[currentVertex], parents)
+      this.resultPath.push(this.names[currentVertex])
     }
   },
   mounted() {
     this.canvas = this.$refs.canv
     this.ctx = this.canvas.getContext('2d')
-    if(window.innerWidth < 500){
+    if (window.innerWidth < 500) {
       this.canvas.width = window.innerWidth
       this.canvas.height = window.innerWidth
-    }else{
+    } else {
       this.canvas.width = 500
       this.canvas.height = 500
     }
@@ -377,6 +390,7 @@ input[type="number"] {
 button.active {
   background-color: #f00;
 }
+
 .table-wrapper {
   max-width: 100%;
   overflow-x: auto;
@@ -414,7 +428,7 @@ td.dist-col input[disabled] {
   margin-left: 10px;
 }
 
-h1,h3 {
+h1, h3 {
   text-align: center;
 }
 
