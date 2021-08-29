@@ -112,9 +112,10 @@ export default {
         e = event.touches[0]
       }
 
+      const rect = this.canvas.getBoundingClientRect();
       if (this.dotIndexToMove !== null) {
-        this.dots[this.dotIndexToMove].x = e.clientX
-        this.dots[this.dotIndexToMove].y = e.clientY
+        this.dots[this.dotIndexToMove].x = e.clientX - rect.left
+        this.dots[this.dotIndexToMove].y = e.clientY - rect.top
         this.dotIndexToMove = null
         this.redraw()
       } else {
@@ -123,7 +124,6 @@ export default {
           this.names[this.nextDotIndex] = dotName.toUpperCase()
           localStorage.setItem('names', JSON.stringify(this.names))
         }
-        const rect = this.canvas.getBoundingClientRect();
         this.paintDot(e.clientX - rect.left, e.clientY - rect.top)
       }
     },
