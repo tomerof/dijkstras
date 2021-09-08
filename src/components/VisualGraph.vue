@@ -1,5 +1,6 @@
 <template>
   <div>
+    <img class="logo" src="../assets/logo.jpg" alt="Logo">
     <h1>מחשבון המסלול הקצר ביותר</h1>
     <h3>ע״פ האלגוריתם של דייקסטרה</h3>
     <div class="canvas-wrapper">
@@ -18,7 +19,7 @@
           </td>
           <td v-for="(distance, distIndex) in dotDistances(dotIndex)" v-bind:key="distIndex" class="dist-col">
             <label>{{ names[distIndex] }}</label>&nbsp;
-            <input :disabled="dotIndex === distIndex" type="number" v-model.number="distances[dotIndex][distIndex]"
+            <input :disabled="dotIndex === distIndex" oninput="validity.valid||(value='');" type="number" min="0" v-model.number="distances[dotIndex][distIndex]"
                    @change="connectDots(dotIndex, distIndex)">
           </td>
         </tr>
@@ -44,10 +45,15 @@
     </div>
     <!--<button type="button" @click="redraw">צייר מחדש</button>-->
     <div class="results-path" v-if="resultPath.length">
-      <p>המסלול הקצר ביותר הוא</p>
-      <p>{{ resultPath.join(' => ') }}</p>
+      <div>
+          <label>המסלול הקצר ביותר הוא:</label>&nbsp;
+          <span>{{ resultPath.join(' => ') }}</span>
+      </div>
     </div>
-    <div class="results" v-html="result"></div>
+    <div class="results" v-if="result">
+        <label>ואורכו הוא:</label>&nbsp;
+        <span>{{result}}</span>
+    </div>
   </div>
 </template>
 
@@ -334,8 +340,7 @@ export default {
     },
     printSolution(startVertex, distances, parents) {
       this.resultPath = [];
-      this.result = "ואורכו הוא ";
-      this.result += distances[this.distIndex]
+      this.result = `${distances[this.distIndex]}`;
       //this.result += ("<br>" + this.names[this.distIndex] + "        ");
       //this.result += (distances[this.distIndex] + "      ");
       this.printPath(this.distIndex, parents)
@@ -354,12 +359,12 @@ export default {
   mounted() {
     this.canvas = this.$refs.canv
     this.ctx = this.canvas.getContext('2d')
-    if (window.innerWidth < 500) {
+    if (window.innerWidth < 767) {
       this.canvas.width = window.innerWidth
       this.canvas.height = window.innerWidth
     } else {
-      this.canvas.width = 500
-      this.canvas.height = 500
+      this.canvas.width = 767
+      this.canvas.height = 431
     }
 
     this.loadFromLocalStorage()
@@ -368,8 +373,16 @@ export default {
 </script>
 
 <style scoped>
-body, h1, h2, h3, h4, h5, h6, table, input, label, button {
+body, h1, h2, h3, h4, h5, h6, table, input, label, button,p {
   font-family: Arial, sans-serif;
+}
+
+h1 {
+    margin-bottom: 5px;
+}
+
+h3 {
+    margin-top: 5px;
 }
 
 .canvas-wrapper {
@@ -377,7 +390,7 @@ body, h1, h2, h3, h4, h5, h6, table, input, label, button {
 }
 
 canvas {
-  width: 500px;
+  width: 767px;
   max-width: 100%;
   border: solid 1px #000;
 }
@@ -451,6 +464,19 @@ h1, h3 {
 .action-buttons, .src-dist-inputs, .results, .results-path {
   direction: rtl;
   text-align: center;
+}
+
+.logo {
+    margin-left: auto;
+    margin-right: auto;
+    display: block;
+    width: 200px;
+    margin-bottom: 10px;
+}
+
+.results label, .results-path label {
+    font-size: 18px;
+    font-weight: bold;
 }
 
 </style>
